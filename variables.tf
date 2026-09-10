@@ -84,3 +84,17 @@ variable "aks_rbac_role_assignments" {
   description = "Entra ID principals granted Azure RBAC access to the AKS cluster, keyed by an arbitrary label."
   default     = {}
 }
+
+variable "workload_identities" {
+  type = map(object({
+    namespace            = string
+    service_account_name = string
+  }))
+  description = "Workload Identity federated credentials to provision, keyed by a short workload name. Each entry creates a user-assigned identity bound to a Kubernetes namespace/service account via OIDC federation — no static secrets required."
+  default = {
+    "example-app" = {
+      namespace            = "default"
+      service_account_name = "example-app"
+    }
+  }
+}
