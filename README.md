@@ -2,6 +2,38 @@
 
 Terraform module that provisions an Azure Kubernetes Service (AKS) cluster consuming network and governance context from [tenant-landing-zone](https://github.com/alozanowong/tenant-landing-zone) via remote state — not as a bolted-on child module, but as a separate repo reading another repo's published Terraform outputs. This mirrors how a platform team would actually structure an MSP-style landing zone: a shared foundation repo, and independent workload repos that consume it.
 
+## Architecture Overview
+
+```mermaid
+flowchart LR
+    subgraph TLZ["tenant-landing-zone — published state"]
+        VNET[Hub-and-Spoke VNet]
+        LAW[Log Analytics Workspace]
+        MG[Management Group]
+    end
+
+    subgraph PLATFORM["aks-platform — this repo"]
+        RG[Resource Group]
+        CLUSTER["AKS Cluster<br/>Azure CNI Overlay"]
+        SYS[System Node Pool]
+        USR[User Node Pool]
+        RBAC["Azure RBAC<br/>role assignments"]
+        WI["Workload Identity<br/>OIDC federation"]
+        DIAG[Diagnostic Settings]
+    end
+
+    VNET -- terraform_remote_state --> CLUSTER
+    LAW -- terraform_remote_state --> DIAG
+    RG --> CLUSTER
+    CLUSTER --> SYS
+    CLUSTER --> USR
+    CLUSTER --> RBAC
+    CLUSTER --> WI
+    CLUSTER --> DIAG
+```
+
+`aks-platform` never has direct code coupling to `tenant-landing-zone` — no shared module, no provider aliasing across repos. The only connection is a `terraform_remote_state` data source reading `tenant-landing-zone`'s Azure Storage backend, read-only, at plan/apply time. The landing zone can be redeployed, re-organized, or owned by a different team entirely without this repo's code changing — only its `terraform.tfvars` inputs would need to catch up if a referenced output were renamed.
+
 ## What this demonstrates
 
 | Capability | Implementation |
